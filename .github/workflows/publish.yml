@@ -22,11 +22,11 @@ jobs:
           - os: windows-latest
             TARGET_OS: windows
             EXECUTABLE: extract_answers.exe
-            ASSET_NAME: extract_answers_windows_x86_64.exe
+            ASSET_NAME: extract_answers_windows.exe
           - os: macos-latest
             TARGET_OS: macos
             EXECUTABLE: extract_answers
-            ASSET_NAME: extract_answers_macos_x86_64
+            ASSET_NAME: extract_answers_macos
 
     steps:
     - name: Checkout Code
@@ -46,17 +46,27 @@ jobs:
       run: |
         pyinstaller --onefile extract_answers.py
 
-    - name: Rename Executable for Release
+    # 用以下步骤替换原来的 Rename 和 Upload 步骤
+    - name: Prepare Asset for Release
       shell: bash
       run: |
         cd dist
-        mv ${{ matrix.EXECUTABLE }} ${{ matrix.ASSET_NAME }}
+        if [ "${{ matrix.TARGET_OS }}" == "windows" ]; then
+          # Windows 是 .exe 格式，直接重命名，不需要额外压缩
+          mv ${{ matrix.EXECUTABLE }} ${{ matrix.ASSET_NAME }}
+        else
+          # Mac 架构：重命名 -> 显式赋予执行权限 -> 压缩为 zip 文件
+          mv ${{ matrix.EXECUTABLE }} ${{ matrix.ASSET_NAME }}
+          chmod +x ${{ matrix.ASSET_NAME }}
+          zip ${{ matrix.ASSET_NAME }}.zip ${{ matrix.ASSET_NAME }}
+        fi
 
     - name: Upload to GitHub Release
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: dist/${{ matrix.ASSET_NAME }}
+        # 使用通配符 *，这样不论是 Windows 的 .exe 还是 Mac 的 .zip，都能被识别并上传
+        files: dist/${{ matrix.ASSET_NAME }}*
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
