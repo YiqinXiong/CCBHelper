@@ -1,4 +1,4 @@
-import pandas as pd
+import openpyxl
 from bs4 import BeautifulSoup
 import re
 import tkinter as tk
@@ -12,15 +12,14 @@ def clean_text(text):
     只保留汉字、英文字母和数字。
     彻底解决（）和()、全角半角标点带来的匹配失败问题。
     """
-    if pd.isna(text):
+    if text is None or text == "":
         return ""
     text = str(text).lower()
     # \w 匹配字母数字下划线，\u4e00-\u9fa5 匹配汉字
     # 这里将所有不在这个范围内的字符（如括号、问号、冒号、空格）全部替换为空
     text = re.sub(r'[^\w\u4e00-\u9fa5]', '', text)
     # 将填空题中常见的下划线也去掉
-    text = text.replace('_', '')
-    return text
+    return text.replace('_', '')
 
 def col_letter_to_index(col_letter):
     col_letter = col_letter.strip().upper()
@@ -47,12 +46,13 @@ def parse_opt_cols(opt_cols_str):
     return sorted(list(set(indices)))
 
 def safe_get_cell(row, index):
+    """适配 openpyxl 元组的获取方式"""
     if index < len(row):
-        return row.iloc[index]
+        val = row[index]
+        return val if val is not None else ""
     return ""
 
 def extract_answers_from_excel(excel_path, q_col, ans_col, opt_cols):
-    df = pd.read_excel(excel_path, header=None) 
     excel_dict = {}
     
     q_idx = col_letter_to_index(q_col)
@@ -62,7 +62,12 @@ def extract_answers_from_excel(excel_path, q_col, ans_col, opt_cols):
     true_keywords = ['正确', '对', '√', 'TRUE', 'Ture']
     false_keywords = ['错误', '错', '×', 'FALSE', 'False']
     
-    for _, row in df.iterrows():
+    # === 改用 openpyxl 直接按行读取 ===
+    wb = openpyxl.load_workbook(excel_path, data_only=True)
+    sheet = wb.active
+    
+    # iter_rows 每次返回一行数据的元组
+    for row in sheet.iter_rows(values_only=True):
         question = clean_text(safe_get_cell(row, q_idx))
         if not question:
             continue

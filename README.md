@@ -22,4 +22,4 @@ CCB月考助手
 5. 在弹窗中选取网页html文件（进入考试界面后，右键“另存为”，即可保存html格式网页文件）
 
 ## 依赖
-`pip3 install pandas beautifulsoup4 openpyxl pyinstaller`
+`pip3 install beautifulsoup4 openpyxl pyinstaller`
