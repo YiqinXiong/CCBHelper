@@ -6,36 +6,61 @@ on:
       - 'v*'
   workflow_dispatch:
 
-# ==========================================
-# 核心改动：显式声明 GITHUB_TOKEN 的权限
-# ==========================================
 permissions:
-  contents: write  # 允许读取代码并拥有创建 Release、上传产物的写权限
+  contents: write
 
 jobs:
   build-and-release:
-    name: Build on ${{ matrix.os }}
+    name: Build on ${{ matrix.TARGET_OS }} (${{ matrix.ARCH }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
+          # 1. Windows 64位
           - os: windows-latest
             TARGET_OS: windows
+            ARCH: x64
+            PYTHON_ARCH: x64  # 指定 64位 Python
             EXECUTABLE: extract_answers.exe
-            ASSET_NAME: extract_answers_windows.exe
-          - os: macos-latest
+            ASSET_NAME: extract_answers_windows_x64.exe
+            
+          # 2. Windows 32位 (新增)
+          - os: windows-latest
+            TARGET_OS: windows
+            ARCH: x86_32
+            PYTHON_ARCH: x86  # 核心改动：强制安装 32位 Python
+            EXECUTABLE: extract_answers.exe
+            ASSET_NAME: extract_answers_windows_x86_32.exe
+            
+          # 3. macOS Intel
+          - os: macos-13
             TARGET_OS: macos
+            ARCH: intel_x86_64
+            PYTHON_ARCH: x64
             EXECUTABLE: extract_answers
-            ASSET_NAME: extract_answers_macos
+            ASSET_NAME: extract_answers_macos_intel_x86_64
+            
+          # 4. macOS ARM (M系列芯片)
+          - os: macos-14
+            TARGET_OS: macos
+            ARCH: apple_silicon_arm64
+            PYTHON_ARCH: x64
+            EXECUTABLE: extract_answers
+            ASSET_NAME: extract_answers_macos_apple_silicon_arm64
 
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
 
+    # ==========================================
+    # 核心改动：根据矩阵变量，动态拉取对应架构的 Python
+    # ==========================================
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.14'
+        architecture: ${{ matrix.PYTHON_ARCH }} 
 
     - name: Install Dependencies
       run: |
@@ -46,16 +71,13 @@ jobs:
       run: |
         pyinstaller --onefile extract_answers.py
 
-    # 用以下步骤替换原来的 Rename 和 Upload 步骤
     - name: Prepare Asset for Release
       shell: bash
       run: |
         cd dist
         if [ "${{ matrix.TARGET_OS }}" == "windows" ]; then
-          # Windows 是 .exe 格式，直接重命名，不需要额外压缩
           mv ${{ matrix.EXECUTABLE }} ${{ matrix.ASSET_NAME }}
         else
-          # Mac 架构：重命名 -> 显式赋予执行权限 -> 压缩为 zip 文件
           mv ${{ matrix.EXECUTABLE }} ${{ matrix.ASSET_NAME }}
           chmod +x ${{ matrix.ASSET_NAME }}
           zip ${{ matrix.ASSET_NAME }}.zip ${{ matrix.ASSET_NAME }}
@@ -65,7 +87,6 @@ jobs:
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        # 使用通配符 *，这样不论是 Windows 的 .exe 还是 Mac 的 .zip，都能被识别并上传
         files: dist/${{ matrix.ASSET_NAME }}*
         generate_release_notes: true
       env:
