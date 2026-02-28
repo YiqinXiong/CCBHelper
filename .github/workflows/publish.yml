@@ -33,21 +33,11 @@ jobs:
             EXECUTABLE: extract_answers.exe
             ASSET_NAME: extract_answers_windows_x86_32.exe
             
-          # 3. macOS Intel
-          - os: macos-13
-            TARGET_OS: macos
-            ARCH: intel_x86_64
-            PYTHON_ARCH: x64
-            EXECUTABLE: extract_answers
-            ASSET_NAME: extract_answers_macos_intel_x86_64
-            
-          # 4. macOS ARM (M系列芯片)
+          # 3. macOS
           - os: macos-14
             TARGET_OS: macos
-            ARCH: apple_silicon_arm64
-            PYTHON_ARCH: x64
             EXECUTABLE: extract_answers
-            ASSET_NAME: extract_answers_macos_apple_silicon_arm64
+            ASSET_NAME: extract_answers_macos
 
     steps:
     - name: Checkout Code
